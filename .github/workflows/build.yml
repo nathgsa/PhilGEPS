@@ -19,17 +19,25 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install Dependencies
+      # FIX: Install Build Tools Explicitly first
+      - name: Install Build Tools
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements_gui.txt
           pip install pyinstaller
+          pip install playwright
+          
+      # Then install the rest of your app dependencies
+      - name: Install App Dependencies
+        run: |
+          if (Test-Path requirements_gui.txt) { pip install -r requirements_gui.txt } else { Write-Host "requirements_gui.txt not found, skipping." }
+        shell: pwsh
 
-      # FIX: Use 'python -m' to call playwright, avoiding PATH issues
+      # Install the Chromium binary (using python module syntax to be safe)
       - name: Install Playwright Chromium
         run: python -m playwright install chromium
 
-      # We use an embedded Python script to handle the complex build logic
+      # ─── BUILD SCRIPT ──────────────────────────────────────────────────────
+      # This Python script finds the browser and runs PyInstaller
       - name: Build with PyInstaller
         shell: python
         run: |
@@ -42,9 +50,8 @@ jobs:
           # --- CONFIGURATION ---
           APP_NAME = "PhilGEPS_ScraperV2"
           ENTRY_SCRIPT = "scraper_gui.py"
-          # Note: Using 'assets/icon.ico' (forward slash works in Python on Win)
-          ICON_PATH = "assets/icon.ico" 
-          # Note: Using the filename from your provided file list (contains typo 'congfig')
+          ICON_PATH = r"assets\icon.ico"
+          # Using the filename from your provided file list (contains typo 'congfig')
           CONFIG_FILE = "categories_congfig.json"
 
           print(f"--- Starting Build for {APP_NAME} ---")
@@ -56,24 +63,29 @@ jobs:
           # Find folders starting with 'chromium-'
           chromium_dirs = glob.glob(os.path.join(pw_root, 'chromium-*'))
           
+          # If not found in LocalAppData, try the generic User Profile (sometimes happens on CI)
           if not chromium_dirs:
-              print(f"Error: No Chromium found in {pw_root}")
-              # fallback check in user profile just in case
-              pw_root_2 = os.path.join(os.path.expanduser("~"), "AppData", "Local", "ms-playwright")
-              chromium_dirs = glob.glob(os.path.join(pw_root_2, 'chromium-*'))
-              if not chromium_dirs:
-                  print("Critical Error: Could not locate Playwright browser.")
-                  sys.exit(1)
+              print(f"Browser not found in {pw_root}. Checking alternative...")
+              pw_root_alt = os.path.join(os.path.expanduser("~"), "AppData", "Local", "ms-playwright")
+              chromium_dirs = glob.glob(os.path.join(pw_root_alt, 'chromium-*'))
 
-          # Sort to ensure we get the latest version if multiple exist
+          if not chromium_dirs:
+              print("CRITICAL ERROR: Could not locate Playwright Chromium browser.")
+              # Debug: List directories to see where it went
+              try:
+                  print(f"Listing {pw_root}: {os.listdir(pw_root)}")
+              except:
+                  pass
+              sys.exit(1)
+
+          # Sort to ensure we get the latest version
           chromium_dirs.sort()
           latest_browser_path = chromium_dirs[-1]
           browser_folder_name = os.path.basename(latest_browser_path)
           print(f"Found Chromium at: {latest_browser_path}")
 
           # 2. DEFINE DATA MAPPINGS (Source;Dest)
-          # We map the browser to: playwright/driver/package/.local-browsers/chromium-xxxx
-          # This matches the logic in your scraper_gui.py
+          # Map the browser to: playwright/driver/package/.local-browsers/chromium-xxxx
           dest_browser_path = f"playwright/driver/package/.local-browsers/{browser_folder_name}"
           
           # Windows uses semicolon ; for separators
@@ -88,7 +100,7 @@ jobs:
               '--clean',
               '--name', APP_NAME,
               
-              # Collect dependencies that PyInstaller sometimes misses
+              # Collect dependencies
               '--collect-all', 'customtkinter',
               '--collect-all', 'playwright',
               
@@ -103,7 +115,7 @@ jobs:
           # Add Icon if it exists
           if os.path.exists(ICON_PATH):
               print(f"Using icon: {ICON_PATH}")
-              # Insert icon argument before the script name
+              # PyInstaller flag format
               cmd.insert(5, f'--icon={ICON_PATH}')
           else:
               print(f"WARNING: Icon not found at {ICON_PATH}. Building with default icon.")
