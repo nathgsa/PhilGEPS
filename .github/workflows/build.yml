@@ -1,259 +1,113 @@
-name: Build Standalone Executables
+name: Build Windows App
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
-  # ──────────────────────────────────────────────────────────────────────────
-  # WINDOWS — produces zero-dependency .exe with Chromium bundled
-  # ──────────────────────────────────────────────────────────────────────────
   build-windows:
-    name: 🪟 Build Windows .exe
+    name: 🪟 Build Windows Exe
     runs-on: windows-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-          cache: 'pip'
+          python-version: '3.10'
 
-      - name: Install Python packages
+      - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller Pillow
-          pip install playwright customtkinter pandas requests beautifulsoup4 lxml
+          pip install -r requirements_gui.txt
+          pip install pyinstaller
 
-      # ── Generate icons (encoding-safe now) ────────────────────────────────
-      - name: Generate application icons
-        run: python create_icons.py
-        shell: pwsh
-
-      # ── Install Chromium (will be bundled into .exe) ───────────────────────
+      # Install the browser binary into the GitHub Runner
       - name: Install Playwright Chromium
+        run: playwright install chromium
+
+      # We use an embedded Python script to find the browser path and run PyInstaller
+      # This is much safer than using PowerShell for complex path mapping
+      - name: Build with PyInstaller
+        shell: python
         run: |
-          $browsersPath = "$env:GITHUB_WORKSPACE\pw-browsers"
-          New-Item -ItemType Directory -Force -Path $browsersPath | Out-Null
-          $env:PLAYWRIGHT_BROWSERS_PATH = $browsersPath
-          playwright install chromium
-          echo "PLAYWRIGHT_BROWSERS_PATH=$browsersPath" >> $env:GITHUB_ENV
-        shell: pwsh
+          import os
+          import subprocess
+          import sys
+          import glob
 
-      - name: Verify Chromium installation
-        run: |
-          Write-Host "Browsers path: $env:PLAYWRIGHT_BROWSERS_PATH"
-          if (Test-Path "$env:PLAYWRIGHT_BROWSERS_PATH") {
-            Get-ChildItem "$env:PLAYWRIGHT_BROWSERS_PATH" -Directory | Select-Object Name
-          }
-        shell: pwsh
+          # --- CONFIGURATION ---
+          APP_NAME = "PhilGEPS_ScraperV2"
+          ENTRY_SCRIPT = "scraper_gui.py"
+          ICON_PATH = r"assets\icon.ico"
+          # NOTE: Using the filename from your provided file list (contains typo 'congfig')
+          CONFIG_FILE = "categories_congfig.json"
 
-      # ── Build the .exe ──────────────────────────────────────────────────────
-      - name: Build .exe with PyInstaller
-        run: pyinstaller philgeps_scraper.spec --clean --noconfirm
-        shell: pwsh
+          print(f"--- Starting Build for {APP_NAME} ---")
 
-      - name: Verify build output
-        run: |
-          $exePath = "dist\PhilGEPS_ScraperV2.exe"
-          if (Test-Path $exePath) {
-            $sizeMB = [math]::Round((Get-Item $exePath).Length / 1MB, 1)
-            Write-Host "SUCCESS: $exePath ($sizeMB MB)"
-          } else {
-            Write-Error "FAILED: $exePath not found"
-            exit 1
-          }
-        shell: pwsh
+          # 1. LOCATE CHROMIUM BROWSER
+          # On Windows, Playwright installs to %LOCALAPPDATA%\ms-playwright
+          pw_root = os.path.join(os.environ['LOCALAPPDATA'], 'ms-playwright')
+          
+          try:
+              # Find folders starting with 'chromium-'
+              browsers = glob.glob(os.path.join(pw_root, 'chromium-*'))
+              if not browsers:
+                  raise FileNotFoundError("No chromium browsers found in ms-playwright folder")
+              
+              # Sort to ensure we get the latest version if multiple exist
+              browsers.sort()
+              latest_browser_path = browsers[-1]
+              browser_folder_name = os.path.basename(latest_browser_path)
+              print(f"Found Chromium at: {latest_browser_path}")
+          except Exception as e:
+              print(f"Error finding browser: {e}")
+              sys.exit(1)
 
-      - name: Upload Windows artifact
+          # 2. DEFINE DATA MAPPINGS (Source;Dest)
+          # We map the browser to: playwright/driver/package/.local-browsers/chromium-xxxx
+          # This matches the logic in your scraper_gui.py
+          dest_browser_path = f"playwright/driver/package/.local-browsers/{browser_folder_name}"
+          
+          add_data_browser = f"{latest_browser_path};{dest_browser_path}"
+          add_data_config = f"{CONFIG_FILE};."
+
+          # 3. CONSTRUCT PYINSTALLER COMMAND
+          cmd = [
+              'pyinstaller',
+              '--noconsole',       # GUI mode (no black command window)
+              '--onefile',         # Single .exe file
+              '--clean',
+              '--name', APP_NAME,
+              
+              # Collect dependencies that PyInstaller sometimes misses
+              '--collect-all', 'customtkinter',
+              '--collect-all', 'playwright',
+              
+              # Bundle the Browser and Config
+              '--add-data', add_data_browser,
+              '--add-data', add_data_config,
+              
+              # Main Script
+              ENTRY_SCRIPT
+          ]
+
+          # Add Icon if it exists
+          if os.path.exists(ICON_PATH):
+              print(f"Using icon: {ICON_PATH}")
+              cmd.insert(4, f'--icon={ICON_PATH}')
+          else:
+              print(f"WARNING: Icon not found at {ICON_PATH}. Building with default icon.")
+
+          # 4. RUN BUILD
+          print("Command:", " ".join(cmd))
+          subprocess.check_call(cmd)
+
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: PhilGEPS_ScraperV2_Windows
           path: dist/PhilGEPS_ScraperV2.exe
-          retention-days: 30
-
-  # ──────────────────────────────────────────────────────────────────────────
-  # macOS — produces .app WITHOUT Chromium (user installs it separately)
-  # ──────────────────────────────────────────────────────────────────────────
-  build-macos:
-    name: 🍎 Build macOS .app
-    runs-on: macos-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-
-      - name: Install Python packages
-        run: |
-          python -m pip install --upgrade pip
-          pip install pyinstaller Pillow
-          pip install playwright customtkinter pandas requests beautifulsoup4 lxml
-
-      # ── Generate icons ──────────────────────────────────────────────────────
-      - name: Generate icon PNG
-        run: python create_icons.py
-
-      - name: Create .icns file
-        run: |
-          mkdir -p assets/icon.iconset
-          
-          # Generate all required sizes
-          for size in 16 32 64 128 256 512; do
-            sips -z $size $size assets/icon.png \
-              --out assets/icon.iconset/icon_${size}x${size}.png
-            sips -z $((size*2)) $((size*2)) assets/icon.png \
-              --out assets/icon.iconset/icon_${size}x${size}@2x.png
-          done
-          
-          # Build the .icns file
-          iconutil -c icns assets/icon.iconset -o assets/icon.icns
-          echo "Created: $(ls -lh assets/icon.icns)"
-
-      # ── CRITICAL: Skip Chromium installation ───────────────────────────────
-      # We're NOT bundling Chromium on macOS (avoids codesign errors).
-      # The spec file skips browser bundling on macOS automatically.
-      # Users will install Chromium once after downloading the .app.
-
-      # ── Build the .app bundle ───────────────────────────────────────────────
-      - name: Build .app with PyInstaller
-        run: pyinstaller philgeps_scraper.spec --clean --noconfirm
-
-      - name: Verify build output
-        run: |
-          if [ -d "dist/PhilGEPS_ScraperV2.app" ]; then
-            SIZE=$(du -sh "dist/PhilGEPS_ScraperV2.app" | cut -f1)
-            echo "SUCCESS: dist/PhilGEPS_ScraperV2.app ($SIZE)"
-          else
-            echo "FAILED: dist/PhilGEPS_ScraperV2.app not found" && exit 1
-          fi
-
-      # ── Package for distribution ───────────────────────────────────────────
-      - name: Package .app for distribution
-        run: |
-          chmod +x "dist/PhilGEPS_ScraperV2.app/Contents/MacOS/PhilGEPS_ScraperV2"
-          cd dist
-          zip -r --symlinks PhilGEPS_ScraperV2_macOS.zip PhilGEPS_ScraperV2.app
-          echo "Package size: $(du -sh PhilGEPS_ScraperV2_macOS.zip | cut -f1)"
-
-      - name: Upload macOS artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: PhilGEPS_ScraperV2_macOS
-          path: dist/PhilGEPS_ScraperV2_macOS.zip
-          retention-days: 30
-
-  # ──────────────────────────────────────────────────────────────────────────
-  # RELEASE — attaches both files to GitHub Release (tag pushes only)
-  # ──────────────────────────────────────────────────────────────────────────
-  release:
-    name: 📦 Create GitHub Release
-    needs: [build-windows, build-macos]
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
-
-    permissions:
-      contents: write
-
-    steps:
-      - name: Download Windows artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: PhilGEPS_ScraperV2_Windows
-          path: release-assets/
-
-      - name: Download macOS artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: PhilGEPS_ScraperV2_macOS
-          path: release-assets/
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: "PhilGEPS ScraperV2 ${{ github.ref_name }}"
-          body: |
-            ## PhilGEPS ScraperV2 ${{ github.ref_name }}
-
-            ### ⬇️ Downloads
-
-            | Platform | File | Setup Required? |
-            |----------|------|-----------------|
-            | 🪟 Windows | `PhilGEPS_ScraperV2.exe` | **Zero setup** — Chromium bundled |
-            | 🍎 macOS | `PhilGEPS_ScraperV2_macOS.zip` | **One-time Chromium install** |
-
-            ---
-
-            ### 🪟 Windows — Zero Setup
-
-            1. Download `PhilGEPS_ScraperV2.exe` (~300 MB)
-            2. Double-click to run
-            3. If SmartScreen warns: **More info** → **Run anyway**
-
-            **Chromium browser is bundled** — no installation needed.
-
-            **To pin to taskbar:** Right-click → **Pin to taskbar**
-
-            ---
-
-            ### 🍎 macOS — One-Time Setup
-
-            macOS apps cannot bundle Chromium due to code-signing limitations.
-            You need to install it **once** before first use:
-
-            **Step 1: Install Chromium (one-time only)**
-            ```bash
-            # Open Terminal and run:
-            pip3 install playwright
-            playwright install chromium
-            ```
-
-            **Step 2: Download and unzip**
-            ```bash
-            unzip ~/Downloads/PhilGEPS_ScraperV2_macOS.zip
-            ```
-
-            **Step 3: Bypass Gatekeeper (first launch only)**
-            ```bash
-            xattr -cr "PhilGEPS_ScraperV2.app"
-            open "PhilGEPS_ScraperV2.app"
-            ```
-
-            **After first-time setup:**
-            Just double-click `PhilGEPS_ScraperV2.app` to run.
-
-            **To add to Dock:**
-            Drag to `/Applications`, then drag from Applications to Dock.
-
-            **Don't have pip/Python?**
-            - Install Homebrew: `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"`
-            - Then run: `brew install python3`
-            - Then run the Chromium install commands above
-
-            ---
-
-            ### 📝 What's New
-
-            - **Windows:** Zero-dependency .exe with bundled Chromium browser
-            - **macOS:** Lightweight .app (Chromium installed separately)
-            - **Fixed:** Data cleaner date/currency parsing bugs
-            - **Fixed:** Thread-safe browser pooling (10× faster scraping)
-            - **New:** Desktop icons for both platforms
-
-            See [WHATS_NEW_V2.md](WHATS_NEW_V2.md) for full changelog.
-          files: |
-            release-assets/PhilGEPS_ScraperV2.exe
-            release-assets/PhilGEPS_ScraperV2_macOS.zip
-          draft: false
-          prerelease: false
