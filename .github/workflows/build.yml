@@ -17,9 +17,9 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'  # UPDATED: Changed from 3.10 to 3.11 to support NumPy 2.3.4
 
-      # FIX: Install Build Tools Explicitly first
+      # Install Build Tools Explicitly first
       - name: Install Build Tools
         run: |
           python -m pip install --upgrade pip
@@ -32,12 +32,11 @@ jobs:
           if (Test-Path requirements_gui.txt) { pip install -r requirements_gui.txt } else { Write-Host "requirements_gui.txt not found, skipping." }
         shell: pwsh
 
-      # Install the Chromium binary (using python module syntax to be safe)
+      # Install the Chromium binary
       - name: Install Playwright Chromium
         run: python -m playwright install chromium
 
       # ─── BUILD SCRIPT ──────────────────────────────────────────────────────
-      # This Python script finds the browser and runs PyInstaller
       - name: Build with PyInstaller
         shell: python
         run: |
@@ -51,7 +50,6 @@ jobs:
           APP_NAME = "PhilGEPS_ScraperV2"
           ENTRY_SCRIPT = "scraper_gui.py"
           ICON_PATH = r"assets\icon.ico"
-          # Using the filename from your provided file list (contains typo 'congfig')
           CONFIG_FILE = "categories_congfig.json"
 
           print(f"--- Starting Build for {APP_NAME} ---")
@@ -63,7 +61,6 @@ jobs:
           # Find folders starting with 'chromium-'
           chromium_dirs = glob.glob(os.path.join(pw_root, 'chromium-*'))
           
-          # If not found in LocalAppData, try the generic User Profile (sometimes happens on CI)
           if not chromium_dirs:
               print(f"Browser not found in {pw_root}. Checking alternative...")
               pw_root_alt = os.path.join(os.path.expanduser("~"), "AppData", "Local", "ms-playwright")
@@ -71,11 +68,6 @@ jobs:
 
           if not chromium_dirs:
               print("CRITICAL ERROR: Could not locate Playwright Chromium browser.")
-              # Debug: List directories to see where it went
-              try:
-                  print(f"Listing {pw_root}: {os.listdir(pw_root)}")
-              except:
-                  pass
               sys.exit(1)
 
           # Sort to ensure we get the latest version
@@ -85,37 +77,28 @@ jobs:
           print(f"Found Chromium at: {latest_browser_path}")
 
           # 2. DEFINE DATA MAPPINGS (Source;Dest)
-          # Map the browser to: playwright/driver/package/.local-browsers/chromium-xxxx
           dest_browser_path = f"playwright/driver/package/.local-browsers/{browser_folder_name}"
           
-          # Windows uses semicolon ; for separators
           add_data_browser = f"{latest_browser_path};{dest_browser_path}"
           add_data_config = f"{CONFIG_FILE};."
 
           # 3. CONSTRUCT PYINSTALLER COMMAND
           cmd = [
               'pyinstaller',
-              '--noconsole',       # GUI mode (no black command window)
-              '--onefile',         # Single .exe file
+              '--noconsole',
+              '--onefile',
               '--clean',
               '--name', APP_NAME,
-              
-              # Collect dependencies
               '--collect-all', 'customtkinter',
               '--collect-all', 'playwright',
-              
-              # Bundle the Browser and Config
               '--add-data', add_data_browser,
               '--add-data', add_data_config,
-              
-              # Main Script
               ENTRY_SCRIPT
           ]
 
           # Add Icon if it exists
           if os.path.exists(ICON_PATH):
               print(f"Using icon: {ICON_PATH}")
-              # PyInstaller flag format
               cmd.insert(5, f'--icon={ICON_PATH}')
           else:
               print(f"WARNING: Icon not found at {ICON_PATH}. Building with default icon.")
