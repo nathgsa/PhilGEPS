@@ -19,18 +19,17 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install Python Dependencies
+      - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements_gui.txt
           pip install pyinstaller
 
-      # Install the browser binary into the GitHub Runner
+      # FIX: Use 'python -m' to call playwright, avoiding PATH issues
       - name: Install Playwright Chromium
-        run: playwright install chromium
+        run: python -m playwright install chromium
 
-      # We use an embedded Python script to find the browser path and run PyInstaller
-      # This is much safer than using PowerShell for complex path mapping
+      # We use an embedded Python script to handle the complex build logic
       - name: Build with PyInstaller
         shell: python
         run: |
@@ -38,12 +37,14 @@ jobs:
           import subprocess
           import sys
           import glob
+          import shutil
 
           # --- CONFIGURATION ---
           APP_NAME = "PhilGEPS_ScraperV2"
           ENTRY_SCRIPT = "scraper_gui.py"
-          ICON_PATH = r"assets\icon.ico"
-          # NOTE: Using the filename from your provided file list (contains typo 'congfig')
+          # Note: Using 'assets/icon.ico' (forward slash works in Python on Win)
+          ICON_PATH = "assets/icon.ico" 
+          # Note: Using the filename from your provided file list (contains typo 'congfig')
           CONFIG_FILE = "categories_congfig.json"
 
           print(f"--- Starting Build for {APP_NAME} ---")
@@ -52,26 +53,30 @@ jobs:
           # On Windows, Playwright installs to %LOCALAPPDATA%\ms-playwright
           pw_root = os.path.join(os.environ['LOCALAPPDATA'], 'ms-playwright')
           
-          try:
-              # Find folders starting with 'chromium-'
-              browsers = glob.glob(os.path.join(pw_root, 'chromium-*'))
-              if not browsers:
-                  raise FileNotFoundError("No chromium browsers found in ms-playwright folder")
-              
-              # Sort to ensure we get the latest version if multiple exist
-              browsers.sort()
-              latest_browser_path = browsers[-1]
-              browser_folder_name = os.path.basename(latest_browser_path)
-              print(f"Found Chromium at: {latest_browser_path}")
-          except Exception as e:
-              print(f"Error finding browser: {e}")
-              sys.exit(1)
+          # Find folders starting with 'chromium-'
+          chromium_dirs = glob.glob(os.path.join(pw_root, 'chromium-*'))
+          
+          if not chromium_dirs:
+              print(f"Error: No Chromium found in {pw_root}")
+              # fallback check in user profile just in case
+              pw_root_2 = os.path.join(os.path.expanduser("~"), "AppData", "Local", "ms-playwright")
+              chromium_dirs = glob.glob(os.path.join(pw_root_2, 'chromium-*'))
+              if not chromium_dirs:
+                  print("Critical Error: Could not locate Playwright browser.")
+                  sys.exit(1)
+
+          # Sort to ensure we get the latest version if multiple exist
+          chromium_dirs.sort()
+          latest_browser_path = chromium_dirs[-1]
+          browser_folder_name = os.path.basename(latest_browser_path)
+          print(f"Found Chromium at: {latest_browser_path}")
 
           # 2. DEFINE DATA MAPPINGS (Source;Dest)
           # We map the browser to: playwright/driver/package/.local-browsers/chromium-xxxx
           # This matches the logic in your scraper_gui.py
           dest_browser_path = f"playwright/driver/package/.local-browsers/{browser_folder_name}"
           
+          # Windows uses semicolon ; for separators
           add_data_browser = f"{latest_browser_path};{dest_browser_path}"
           add_data_config = f"{CONFIG_FILE};."
 
@@ -98,7 +103,8 @@ jobs:
           # Add Icon if it exists
           if os.path.exists(ICON_PATH):
               print(f"Using icon: {ICON_PATH}")
-              cmd.insert(4, f'--icon={ICON_PATH}')
+              # Insert icon argument before the script name
+              cmd.insert(5, f'--icon={ICON_PATH}')
           else:
               print(f"WARNING: Icon not found at {ICON_PATH}. Building with default icon.")
 
