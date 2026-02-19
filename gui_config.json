@@ -1,0 +1,23 @@
+{
+  "last_categories": [
+    28,
+    29,
+    51,
+    64,
+    71,
+    80,
+    129,
+    134,
+    150
+  ],
+  "limit": 2,
+  "delay": 0.5,
+  "retry_count": 2,
+  "skip_cleaning": false,
+  "max_category_workers": 2,
+  "max_detail_workers": 5,
+  "output_dir": "output",
+  "theme": "dark",
+  "window_geometry": "1000x750+78+78",
+  "rows_per_page": 50
+}

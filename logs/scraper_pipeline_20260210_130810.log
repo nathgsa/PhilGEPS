@@ -1,0 +1,11 @@
+2026-02-10 13:08:10,207 - __main__ - INFO - Starting PhilGEPS Scraper Pipeline at 2026-02-10 13:08:10.207515
+2026-02-10 13:08:10,207 - __main__ - INFO - Validating environment...
+2026-02-10 13:08:10,526 - __main__ - WARNING - Missing packages: ['beautifulsoup4']
+2026-02-10 13:08:10,526 - __main__ - WARNING - Please install missing packages with: pip install beautifulsoup4
+2026-02-10 13:08:10,527 - __main__ - INFO - Environment validation completed
+2026-02-10 13:08:10,527 - __main__ - INFO - ============================================================
+2026-02-10 13:08:10,527 - __main__ - INFO - STARTING PHILGEPS SCRAPER
+2026-02-10 13:08:10,527 - __main__ - INFO - ============================================================
+2026-02-10 13:08:10,527 - __main__ - INFO - Running command: C:\Users\OPTIMA\AppData\Local\Python\pythoncore-3.14-64\python.exe C:\Users\OPTIMA\Documents\IT\PROJECTS\Philgeps ScraperV2\final_working_scraper.py --output output/raw/philgeps_final_working.csv --delay 0.5
+2026-02-10 13:09:35,087 - __main__ - ERROR - Scraper failed with return code: 3221225786
+2026-02-10 13:09:35,088 - __main__ - ERROR - Pipeline failed at scraper stage

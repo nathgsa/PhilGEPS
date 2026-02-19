@@ -1,0 +1,9 @@
+{
+  "categories": ["General Merchandise", "80"],
+  "limit": 0,
+  "delay": 0.5,
+  "no_clean": false,
+  "retry_count": 2
+}
+
+

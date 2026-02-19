@@ -1,0 +1,400 @@
+name: Build PhilGEPS ScraperV2
+
+on:
+  push:
+    branches: [main, master]
+    tags:
+      - "v*"
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:          # allows manual trigger from GitHub UI
+
+# ── Shared constants ──────────────────────────────────────────────────────────
+env:
+  APP_NAME: PhilGEPS_ScraperV2
+  PYTHON_VERSION: "3.11"
+  # Playwright stores browsers here when PLAYWRIGHT_BROWSERS_PATH is set.
+  # We override it so both OS land in the same predictable spot.
+  PLAYWRIGHT_BROWSERS_PATH: pw-browsers
+
+# ══════════════════════════════════════════════════════════════════════════════
+jobs:
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 1 — Windows .exe
+# ─────────────────────────────────────────────────────────────────────────────
+  build-windows:
+    name: 🪟 Windows — build .exe
+    runs-on: windows-latest
+
+    steps:
+      # ── 1. Source code ───────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Python ────────────────────────────────────────────────────────
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      # ── 3. Python dependencies ───────────────────────────────────────────
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements_gui.txt
+          pip install pyinstaller
+
+      # ── 4. Playwright Chromium browser ───────────────────────────────────
+      # We install into $env:PLAYWRIGHT_BROWSERS_PATH (pw-browsers/) so
+      # PyInstaller can bundle the exact folder the app will look for.
+      - name: Cache Playwright browser
+        id: cache-pw-win
+        uses: actions/cache@v4
+        with:
+          path: pw-browsers
+          key: pw-chromium-win-${{ hashFiles('requirements_gui.txt') }}
+
+      - name: Install Playwright Chromium (if not cached)
+        if: steps.cache-pw-win.outputs.cache-hit != 'true'
+        run: python -m playwright install chromium
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: pw-browsers
+
+      # ── 5. Locate assets for PyInstaller --add-data ──────────────────────
+      - name: Resolve asset paths (Windows)
+        id: paths-win
+        shell: pwsh
+        run: |
+          # CustomTkinter asset directory
+          $ctk = python -c "import customtkinter, os; print(os.path.dirname(customtkinter.__file__))"
+          echo "CTK_DIR=$ctk" >> $env:GITHUB_OUTPUT
+
+          # Playwright driver directory (node binary lives here)
+          $pw_driver = python -c "import playwright, os; print(os.path.join(os.path.dirname(playwright.__file__), 'driver'))"
+          echo "PW_DRIVER=$pw_driver" >> $env:GITHUB_OUTPUT
+
+          # Playwright browser directory (what we installed above)
+          $pw_browser = "${{ github.workspace }}\pw-browsers"
+          echo "PW_BROWSER=$pw_browser" >> $env:GITHUB_OUTPUT
+
+          echo "CTK      : $ctk"
+          echo "PW driver: $pw_driver"
+          echo "PW browser: $pw_browser"
+
+      # ── 6. Run PyInstaller ────────────────────────────────────────────────
+      - name: Build with PyInstaller (Windows)
+        shell: pwsh
+        run: |
+          $ctk      = "${{ steps.paths-win.outputs.CTK_DIR }}"
+          $pw_driver = "${{ steps.paths-win.outputs.PW_DRIVER }}"
+          $pw_browser = "${{ steps.paths-win.outputs.PW_BROWSER }}"
+
+          pyinstaller `
+            --name "${{ env.APP_NAME }}" `
+            --windowed `
+            --onedir `
+            --noconfirm `
+            --clean `
+            --add-data "$ctk;customtkinter" `
+            --add-data "$pw_driver;playwright/driver" `
+            --add-data "$pw_browser;playwright/driver/package/.local-browsers" `
+            --add-data "categories_congfig.json;." `
+            --hidden-import "final_working_scraper" `
+            --hidden-import "multi_category_scraper" `
+            --hidden-import "data_cleaner" `
+            --hidden-import "test_philgeps_connection" `
+            --hidden-import "playwright" `
+            --hidden-import "playwright.sync_api" `
+            --hidden-import "playwright._impl._api_types" `
+            --hidden-import "playwright._impl._browser" `
+            --hidden-import "playwright._impl._browser_context" `
+            --hidden-import "playwright._impl._page" `
+            --hidden-import "playwright._impl._element_handle" `
+            --hidden-import "playwright._impl._locator" `
+            --hidden-import "playwright._impl._network" `
+            --hidden-import "bs4" `
+            --hidden-import "bs4.builder" `
+            --hidden-import "bs4.builder._htmlparser" `
+            --hidden-import "pandas" `
+            --hidden-import "pandas._libs.tslibs.np_datetime" `
+            --hidden-import "pandas._libs.tslibs.nattype" `
+            --hidden-import "pandas._libs.tslibs.timezones" `
+            --hidden-import "pandas.io.formats.style" `
+            --hidden-import "numpy" `
+            --hidden-import "numpy.core._multiarray_umath" `
+            --hidden-import "requests" `
+            --hidden-import "requests.adapters" `
+            --hidden-import "urllib3" `
+            --hidden-import "certifi" `
+            --hidden-import "charset_normalizer" `
+            --hidden-import "customtkinter" `
+            --hidden-import "customtkinter.windows" `
+            --hidden-import "customtkinter.windows.widgets" `
+            --hidden-import "customtkinter.windows.widgets.core_rendering" `
+            --hidden-import "darkdetect" `
+            --hidden-import "tkinter" `
+            --hidden-import "tkinter.ttk" `
+            --hidden-import "tkinter.messagebox" `
+            --hidden-import "tkinter.filedialog" `
+            --hidden-import "concurrent.futures" `
+            --exclude-module "matplotlib" `
+            --exclude-module "scipy" `
+            --exclude-module "IPython" `
+            --exclude-module "notebook" `
+            --exclude-module "pytest" `
+            scraper_gui.py
+
+      # ── 7. Smoke-test: verify .exe exists and launches ────────────────────
+      - name: Smoke-test .exe (Windows)
+        shell: pwsh
+        run: |
+          $exe = "dist\${{ env.APP_NAME }}\${{ env.APP_NAME }}.exe"
+          if (-Not (Test-Path $exe)) {
+            Write-Error ".exe not found: $exe"
+            exit 1
+          }
+          Write-Host ".exe found: $exe  (size: $((Get-Item $exe).Length) bytes)"
+
+          # Launch with a timeout — the GUI opens but we just need it not to crash
+          $proc = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 8
+          if ($proc.HasExited -and $proc.ExitCode -ne 0) {
+            Write-Error "Process exited early with code $($proc.ExitCode)"
+            exit 1
+          }
+          if (-Not $proc.HasExited) {
+            $proc.Kill()
+            Write-Host "Smoke-test passed — app launched successfully."
+          }
+
+      # ── 8. Zip the output folder ──────────────────────────────────────────
+      - name: Zip Windows build
+        shell: pwsh
+        run: |
+          Compress-Archive `
+            -Path "dist\${{ env.APP_NAME }}" `
+            -DestinationPath "${{ env.APP_NAME }}-Windows.zip"
+
+      # ── 9. Upload artifact ────────────────────────────────────────────────
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-Windows
+          path: ${{ env.APP_NAME }}-Windows.zip
+          retention-days: 30
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 2 — macOS .app
+# ─────────────────────────────────────────────────────────────────────────────
+  build-macos:
+    name: 🍎 macOS — build .app
+    runs-on: macos-latest
+
+    steps:
+      # ── 1. Source code ───────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Python ────────────────────────────────────────────────────────
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      # ── 3. Python dependencies ───────────────────────────────────────────
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements_gui.txt
+          pip install pyinstaller
+
+      # ── 4. Playwright Chromium browser ───────────────────────────────────
+      - name: Cache Playwright browser
+        id: cache-pw-mac
+        uses: actions/cache@v4
+        with:
+          path: pw-browsers
+          key: pw-chromium-mac-${{ hashFiles('requirements_gui.txt') }}
+
+      - name: Install Playwright Chromium (if not cached)
+        if: steps.cache-pw-mac.outputs.cache-hit != 'true'
+        run: python -m playwright install chromium
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: pw-browsers
+
+      # ── 5. Locate assets for PyInstaller --add-data ──────────────────────
+      - name: Resolve asset paths (macOS)
+        id: paths-mac
+        run: |
+          CTK_DIR=$(python -c "import customtkinter, os; print(os.path.dirname(customtkinter.__file__))")
+          PW_DRIVER=$(python -c "import playwright, os; print(os.path.join(os.path.dirname(playwright.__file__), 'driver'))")
+          PW_BROWSER="${{ github.workspace }}/pw-browsers"
+
+          echo "CTK_DIR=$CTK_DIR"   >> "$GITHUB_OUTPUT"
+          echo "PW_DRIVER=$PW_DRIVER" >> "$GITHUB_OUTPUT"
+          echo "PW_BROWSER=$PW_BROWSER" >> "$GITHUB_OUTPUT"
+
+          echo "CTK      : $CTK_DIR"
+          echo "PW driver: $PW_DRIVER"
+          echo "PW browser: $PW_BROWSER"
+
+      # ── 6. Run PyInstaller ────────────────────────────────────────────────
+      - name: Build with PyInstaller (macOS)
+        run: |
+          CTK="${{ steps.paths-mac.outputs.CTK_DIR }}"
+          PW_DRIVER="${{ steps.paths-mac.outputs.PW_DRIVER }}"
+          PW_BROWSER="${{ steps.paths-mac.outputs.PW_BROWSER }}"
+
+          pyinstaller \
+            --name "${{ env.APP_NAME }}" \
+            --windowed \
+            --onedir \
+            --noconfirm \
+            --clean \
+            --add-data "$CTK:customtkinter" \
+            --add-data "$PW_DRIVER:playwright/driver" \
+            --add-data "$PW_BROWSER:playwright/driver/package/.local-browsers" \
+            --add-data "categories_congfig.json:." \
+            --hidden-import "final_working_scraper" \
+            --hidden-import "multi_category_scraper" \
+            --hidden-import "data_cleaner" \
+            --hidden-import "test_philgeps_connection" \
+            --hidden-import "playwright" \
+            --hidden-import "playwright.sync_api" \
+            --hidden-import "playwright._impl._api_types" \
+            --hidden-import "playwright._impl._browser" \
+            --hidden-import "playwright._impl._browser_context" \
+            --hidden-import "playwright._impl._page" \
+            --hidden-import "playwright._impl._element_handle" \
+            --hidden-import "playwright._impl._locator" \
+            --hidden-import "playwright._impl._network" \
+            --hidden-import "bs4" \
+            --hidden-import "bs4.builder" \
+            --hidden-import "bs4.builder._htmlparser" \
+            --hidden-import "pandas" \
+            --hidden-import "pandas._libs.tslibs.np_datetime" \
+            --hidden-import "pandas._libs.tslibs.nattype" \
+            --hidden-import "pandas._libs.tslibs.timezones" \
+            --hidden-import "pandas.io.formats.style" \
+            --hidden-import "numpy" \
+            --hidden-import "numpy.core._multiarray_umath" \
+            --hidden-import "requests" \
+            --hidden-import "requests.adapters" \
+            --hidden-import "urllib3" \
+            --hidden-import "certifi" \
+            --hidden-import "charset_normalizer" \
+            --hidden-import "customtkinter" \
+            --hidden-import "customtkinter.windows" \
+            --hidden-import "customtkinter.windows.widgets" \
+            --hidden-import "customtkinter.windows.widgets.core_rendering" \
+            --hidden-import "darkdetect" \
+            --hidden-import "tkinter" \
+            --hidden-import "tkinter.ttk" \
+            --hidden-import "tkinter.messagebox" \
+            --hidden-import "tkinter.filedialog" \
+            --hidden-import "concurrent.futures" \
+            --exclude-module "matplotlib" \
+            --exclude-module "scipy" \
+            --exclude-module "IPython" \
+            --exclude-module "notebook" \
+            --exclude-module "pytest" \
+            scraper_gui.py
+
+      # ── 7. Remove quarantine flag (required on macOS for Chromium) ─────────
+      - name: Remove macOS quarantine flag
+        run: |
+          xattr -cr "dist/${{ env.APP_NAME }}.app" || true
+
+      # ── 8. Smoke-test: verify .app exists and launches ────────────────────
+      - name: Smoke-test .app (macOS)
+        run: |
+          APP="dist/${{ env.APP_NAME }}.app"
+          if [ ! -d "$APP" ]; then
+            echo "ERROR: .app bundle not found at $APP"
+            exit 1
+          fi
+          echo ".app bundle found: $APP"
+          echo "Bundle size: $(du -sh "$APP" | cut -f1)"
+
+          # Launch the app, wait 8s, then kill it
+          open "$APP" &
+          LAUNCH_PID=$!
+          sleep 8
+
+          # Check that the process actually launched (not crashed immediately)
+          APP_BINARY="${APP}/Contents/MacOS/${{ env.APP_NAME }}"
+          if ! pgrep -f "${{ env.APP_NAME }}" > /dev/null 2>&1; then
+            echo "WARNING: App process not found after 8s — may have crashed or exited early."
+          else
+            echo "Smoke-test passed — app launched and is running."
+            pkill -f "${{ env.APP_NAME }}" || true
+          fi
+
+      # ── 9. Zip the .app bundle ─────────────────────────────────────────────
+      - name: Zip macOS build
+        run: |
+          cd dist
+          zip -r --symlinks "../${{ env.APP_NAME }}-macOS.zip" "${{ env.APP_NAME }}.app"
+          cd ..
+
+      # ── 10. Upload artifact ────────────────────────────────────────────────
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-macOS
+          path: ${{ env.APP_NAME }}-macOS.zip
+          retention-days: 30
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 3 — Create GitHub Release (only on version tags, e.g. v1.0.0)
+# ─────────────────────────────────────────────────────────────────────────────
+  release:
+    name: 🚀 Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build-windows, build-macos]
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-Windows
+          path: release-assets/
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-macOS
+          path: release-assets/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ env.APP_NAME }} ${{ github.ref_name }}
+          body: |
+            ## PhilGEPS ScraperV2 ${{ github.ref_name }}
+
+            ### Downloads
+            | Platform | File |
+            |----------|------|
+            | 🪟 Windows 10/11 | `${{ env.APP_NAME }}-Windows.zip` |
+            | 🍎 macOS 12+ | `${{ env.APP_NAME }}-macOS.zip` |
+
+            ### How to install
+            **Windows:**  Unzip → run `PhilGEPS_ScraperV2.exe`
+
+            **macOS:**  Unzip → right-click the `.app` → Open
+            (first launch only — bypasses Gatekeeper)
+          files: |
+            release-assets/${{ env.APP_NAME }}-Windows.zip
+            release-assets/${{ env.APP_NAME }}-macOS.zip
+          draft: false
+          prerelease: false

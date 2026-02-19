@@ -1,0 +1,11 @@
+🎉 PhilGEPS Multi-Category Scraping Summary
+==================================================
+
+📊 Results Summary:
+  OK  Printing Services: ✅ Successfully scraped
+
+📄 Total entries collected : 134
+📄 Final merged entries    : 134
+🔄 Duplicates removed      : 0
+
+ 📁Final file: output\cleaned/philgeps_merged_cleaned.csv

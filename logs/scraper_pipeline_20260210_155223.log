@@ -1,0 +1,52 @@
+2026-02-10 15:52:23,158 - __main__ - INFO - Starting PhilGEPS Scraper Pipeline at 2026-02-10 15:52:23.158343
+2026-02-10 15:52:23,158 - __main__ - INFO - Validating environment...
+2026-02-10 15:52:23,507 - __main__ - WARNING - Missing packages: ['beautifulsoup4']
+2026-02-10 15:52:23,507 - __main__ - WARNING - Please install missing packages with: pip install beautifulsoup4
+2026-02-10 15:52:23,507 - __main__ - INFO - Environment validation completed
+2026-02-10 15:52:23,507 - __main__ - INFO - ============================================================
+2026-02-10 15:52:23,507 - __main__ - INFO - STARTING PHILGEPS SCRAPER
+2026-02-10 15:52:23,507 - __main__ - INFO - ============================================================
+2026-02-10 15:52:23,507 - __main__ - INFO - Running command: C:\Users\OPTIMA\AppData\Local\Python\pythoncore-3.14-64\python.exe C:\Users\OPTIMA\Documents\IT\PROJECTS\Philgeps ScraperV2\final_working_scraper.py --output output/raw/philgeps_final_working.csv --delay 0.5
+2026-02-10 15:52:52,928 - __main__ - INFO - Scraper stdout:
+2026-02-10 15:52:52,928 - __main__ - INFO -   Starting final working scraper to collect all 148+ entries...
+2026-02-10 15:52:52,928 - __main__ - INFO -   Navigating to: https://notices.philgeps.gov.ph/GEPSNONPILOT/Tender/SplashOpportunitiesSearchUI.aspx?menuIndex=3&BusCatID=29&type=category&ClickFrom=OpenOpp
+2026-02-10 15:52:52,928 - __main__ - INFO -   Processing page 1...
+2026-02-10 15:52:52,929 - __main__ - INFO -   Found 20 NEW links on page 1
+2026-02-10 15:52:52,929 - __main__ - INFO -   Total unique links so far: 20
+2026-02-10 15:52:52,929 - __main__ - INFO -   Clicking Next button for page 2
+2026-02-10 15:52:52,929 - __main__ - INFO -   Processing page 2...
+2026-02-10 15:52:52,929 - __main__ - INFO -   Found 20 NEW links on page 2
+2026-02-10 15:52:52,929 - __main__ - INFO -   Total unique links so far: 40
+2026-02-10 15:52:52,929 - __main__ - INFO -   Clicking Next button for page 3
+2026-02-10 15:52:52,929 - __main__ - INFO -   Processing page 3...
+2026-02-10 15:52:52,929 - __main__ - INFO -   Found 20 NEW links on page 3
+2026-02-10 15:52:52,929 - __main__ - INFO -   Total unique links so far: 60
+2026-02-10 15:52:52,929 - __main__ - INFO -   Clicking Next button for page 4
+2026-02-10 15:52:52,929 - __main__ - INFO -   Processing page 4...
+2026-02-10 15:52:52,929 - __main__ - INFO -   Found 20 NEW links on page 4
+2026-02-10 15:52:52,929 - __main__ - INFO -   Total unique links so far: 80
+2026-02-10 15:52:52,929 - __main__ - INFO -   Clicking Next button for page 5
+2026-02-10 15:52:52,929 - __main__ - INFO -   Processing page 5...
+2026-02-10 15:52:52,929 - __main__ - INFO -   Found 20 NEW links on page 5
+2026-02-10 15:52:52,929 - __main__ - INFO -   Total unique links so far: 100
+2026-02-10 15:52:52,929 - __main__ - INFO -   Clicking Next button for page 6
+2026-02-10 15:52:52,929 - __main__ - INFO -   Processing page 6...
+2026-02-10 15:52:52,929 - __main__ - INFO -   Found 10 NEW links on page 6
+2026-02-10 15:52:52,929 - __main__ - INFO -   Total unique links so far: 110
+2026-02-10 15:52:52,929 - __main__ - INFO -   Clicking Next button for page 7
+2026-02-10 15:52:52,929 - __main__ - INFO -   Processing page 7...
+2026-02-10 15:52:52,929 - __main__ - INFO -   Found 0 NEW links on page 7
+2026-02-10 15:52:52,929 - __main__ - INFO -   Total unique links so far: 110
+2026-02-10 15:52:52,929 - __main__ - WARNING - Scraper stderr:
+2026-02-10 15:52:52,930 - __main__ - WARNING -   Traceback (most recent call last):
+2026-02-10 15:52:52,930 - __main__ - WARNING -     File "C:\Users\OPTIMA\Documents\IT\PROJECTS\Philgeps ScraperV2\final_working_scraper.py", line 447, in <module>
+2026-02-10 15:52:52,930 - __main__ - WARNING -       detail_urls = collect_detail_links()
+2026-02-10 15:52:52,930 - __main__ - WARNING -     File "C:\Users\OPTIMA\Documents\IT\PROJECTS\Philgeps ScraperV2\final_working_scraper.py", line 179, in collect_detail_links
+2026-02-10 15:52:52,930 - __main__ - WARNING -       print(f"\u26a0\ufe0f  No new links found on page {page_count}. Page might not have changed.")
+2026-02-10 15:52:52,930 - __main__ - WARNING -       ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-02-10 15:52:52,930 - __main__ - WARNING -     File "C:\Users\OPTIMA\AppData\Local\Python\pythoncore-3.14-64\Lib\encodings\cp1252.py", line 19, in encode
+2026-02-10 15:52:52,930 - __main__ - WARNING -       return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+2026-02-10 15:52:52,930 - __main__ - WARNING -              ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-02-10 15:52:52,930 - __main__ - WARNING -   UnicodeEncodeError: 'charmap' codec can't encode characters in position 0-1: character maps to <undefined>
+2026-02-10 15:52:52,930 - __main__ - ERROR - Scraper failed with return code: 1
+2026-02-10 15:52:52,930 - __main__ - ERROR - Pipeline failed at scraper stage

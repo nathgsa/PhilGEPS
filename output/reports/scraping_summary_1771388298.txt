@@ -1,0 +1,11 @@
+🎉 PhilGEPS Multi-Category Scraping Summary
+==================================================
+
+📊 Results Summary:
+  OK  General Merchandise: ✅ Successfully scraped
+
+📄 Total entries collected : 80
+📄 Final merged entries    : 80
+🔄 Duplicates removed      : 0
+
+ 📁Final file: output\cleaned/philgeps_merged_cleaned.csv

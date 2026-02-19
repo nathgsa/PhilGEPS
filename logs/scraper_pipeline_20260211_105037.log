@@ -1,0 +1,9 @@
+2026-02-11 10:50:37,807 - __main__ - INFO - Starting PhilGEPS Scraper Pipeline at 2026-02-11 10:50:37.806987
+2026-02-11 10:50:37,807 - __main__ - INFO - Validating environment...
+2026-02-11 10:50:38,120 - __main__ - WARNING - Missing packages: ['beautifulsoup4']
+2026-02-11 10:50:38,120 - __main__ - WARNING - Please install missing packages with: pip install beautifulsoup4
+2026-02-11 10:50:38,121 - __main__ - INFO - Environment validation completed
+2026-02-11 10:50:38,121 - __main__ - INFO - ============================================================
+2026-02-11 10:50:38,121 - __main__ - INFO - STARTING PHILGEPS SCRAPER
+2026-02-11 10:50:38,121 - __main__ - INFO - ============================================================
+2026-02-11 10:50:38,121 - __main__ - INFO - Running command: C:\Users\OPTIMA\Documents\IT\PROJECTS\Philgeps ScraperV2\venv\Scripts\python.exe C:\Users\OPTIMA\Documents\IT\PROJECTS\Philgeps ScraperV2\final_working_scraper.py --output output/raw/philgeps_final_working.csv --delay 0.5

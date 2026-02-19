@@ -1,0 +1,9 @@
+{
+  "categories": ["Educational", "Tokens", "134", "71"],
+  "limit": 0,
+  "delay": 0.3,
+  "no_clean": false,
+  "retry_count": 2,
+  "max_category_workers": 2,
+  "max_detail_workers": 5
+}

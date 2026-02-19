@@ -1,0 +1,22 @@
+2026-02-11 09:57:47,284 - __main__ - INFO - Starting PhilGEPS Scraper Pipeline at 2026-02-11 09:57:47.284098
+2026-02-11 09:57:47,284 - __main__ - INFO - Validating environment...
+2026-02-11 09:57:47,645 - __main__ - WARNING - Missing packages: ['beautifulsoup4']
+2026-02-11 09:57:47,645 - __main__ - WARNING - Please install missing packages with: pip install beautifulsoup4
+2026-02-11 09:57:47,645 - __main__ - INFO - Environment validation completed
+2026-02-11 09:57:47,645 - __main__ - INFO - ============================================================
+2026-02-11 09:57:47,645 - __main__ - INFO - STARTING PHILGEPS SCRAPER
+2026-02-11 09:57:47,645 - __main__ - INFO - ============================================================
+2026-02-11 09:57:47,645 - __main__ - INFO - Running command: C:\Users\OPTIMA\Documents\IT\PROJECTS\Philgeps-Scraper\venv\Scripts\python.exe C:\Users\OPTIMA\Documents\IT\PROJECTS\Philgeps-Scraper\final_working_scraper.py --output output/raw/philgeps_final_working.csv --delay 0.5
+2026-02-11 09:57:53,443 - __main__ - INFO - Scraper stdout:
+2026-02-11 09:57:53,444 - __main__ - INFO -   Starting final working scraper to collect all 148+ entries...
+2026-02-11 09:57:53,444 - __main__ - INFO -   Navigating to: https://notices.philgeps.gov.ph/GEPSNONPILOT/Tender/SplashOpportunitiesSearchUI.aspx?menuIndex=3&BusCatID=29&type=category&ClickFrom=OpenOpp
+2026-02-11 09:57:53,444 - __main__ - INFO -   Error navigating to https://notices.philgeps.gov.ph/GEPSNONPILOT/Tender/SplashOpportunitiesSearchUI.aspx?menuIndex=3&BusCatID=29&type=category&ClickFrom=OpenOpp: Page.goto: net::ERR_TOO_MANY_REDIRECTS at https://notices.philgeps.gov.ph/GEPSNONPILOT/Tender/SplashOpportunitiesSearchUI.aspx?menuIndex=3&BusCatID=29&type=category&ClickFrom=OpenOpp
+2026-02-11 09:57:53,444 - __main__ - INFO -   Call log:
+2026-02-11 09:57:53,444 - __main__ - INFO -     - navigating to "https://notices.philgeps.gov.ph/GEPSNONPILOT/Tender/SplashOpportunitiesSearchUI.aspx?menuIndex=3&BusCatID=29&type=category&ClickFrom=OpenOpp", waiting until "domcontentloaded"
+2026-02-11 09:57:53,444 - __main__ - INFO -   
+2026-02-11 09:57:53,444 - __main__ - INFO -   
+2026-02-11 09:57:53,444 - __main__ - INFO -   Scraping 0 detail pages...
+2026-02-11 09:57:53,444 - __main__ - WARNING - Scraper stderr:
+2026-02-11 09:57:53,444 - __main__ - WARNING -   No rows scraped. Try increasing limit or re-running.
+2026-02-11 09:57:53,444 - __main__ - ERROR - Scraper failed with return code: 1
+2026-02-11 09:57:53,444 - __main__ - ERROR - Pipeline failed at scraper stage
